@@ -3,3 +3,5 @@
 //
 
 #include "parser.hpp"
+
+using namespace hack_decoder;
