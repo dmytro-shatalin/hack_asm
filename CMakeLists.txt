@@ -47,7 +47,6 @@ if (COMPILE_EXECUTABLE)
     )
     target_link_libraries(hack_asm PRIVATE
             hack_asm_config
-            ${PARSER_LIB}
             args_parser
             ${PARSER_LIB}
     )
