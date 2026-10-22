@@ -8,15 +8,29 @@
 
 using namespace hack_decoder;
 
-static bool is_space(const unsigned char c) {
-    return c == ' ' || c == '\t' || c == '\r';
-}
-
-static bool is_one_of(const unsigned char c, const std::string_view chars) {
-    return chars.find(static_cast<char>(c)) != std::string_view::npos;
-}
-
 namespace {
+    inline constexpr std::string_view invalid_char_fmt{
+        "encountered invalid character: {:c}"
+    };
+    inline constexpr std::string_view invalid_char_in_target_fmt{
+        "encountered invalid character in target [ @target ]: {:c}"
+    };
+    inline constexpr std::string_view invalid_char_target_label_or_addr_fmt{
+        "a-instruction target can only be a label or an address: {:c}"
+    };
+    inline constexpr std::string_view invalid_char_in_dest_fmt{
+        "encountered invalid character in dest [ dest = comp ; jump ]: {:c}"
+    };
+    inline constexpr std::string_view invalid_char_in_comp_fmt{
+        "encountered invalid character in comp [ dest = comp ; jump ]: {:c}"
+    };
+    inline constexpr std::string_view invalid_char_in_jump_fmt{
+        "encountered invalid character in jump [ dest = comp ; jump ]: {:c}"
+    };
+    inline constexpr std::string_view invalid_char_in_label_fmt{
+        "encountered invalid character in label [ (label) ]: {:c}"
+    };
+
     enum class st : uint8_t {
         in_label,
         in_instruction,
@@ -24,6 +38,14 @@ namespace {
         in_error,
         empty
     };
+
+    bool is_space(const unsigned char c) {
+        return c == ' ' || c == '\t' || c == '\r';
+    }
+
+    bool is_one_of(const unsigned char c, const std::string_view chars) {
+        return chars.find(static_cast<char>(c)) != std::string_view::npos;
+    }
 }
 
 class scanner_base::impl {
@@ -111,7 +133,7 @@ private:
 
     void warn(std::string msg);
 
-    auto fail(unsigned char c, std::string msg) -> state;
+    auto fail(std::string msg) -> state;
 
     auto go(step_fn next, state emit) -> state;
 
@@ -181,16 +203,16 @@ auto scanner_base::impl::feed(const std::byte b) -> state {
 auto scanner_base::impl::eof() -> state {
     switch (this->state_) {
         case st::in_label:
-            return this->fail(' ', "unexpected end for label");
+            return this->fail("unexpected end for label");
         case st::in_instruction:
-            return this->fail(' ', "unexpected end for instruction");
+            return this->fail("unexpected end for instruction");
         case st::in_comment_block:
-            return this->fail(' ', "unexpected end for comment block");
+            return this->fail("unexpected end for comment block");
         case st::in_error:
             return state::scan_error;
         default:
             if (this->step_ != &impl::state_statement_begin) {
-                return this->fail(' ', "unexpected end of file");
+                return this->fail("unexpected end of file");
             }
     }
     return state::scan_end;
@@ -237,7 +259,7 @@ auto scanner_base::impl::state_statement_begin(const unsigned char c) -> state {
         case '\n':
             return state::scan_skip_space;
         default:
-            return this->fail(c, "encountered invalid character");
+            return this->fail(std::format(invalid_char_fmt, c));
     }
 }
 
@@ -249,11 +271,11 @@ auto scanner_base::impl::state_a_instruction_begin(const unsigned char c) -> sta
     if (isdigit(c)) {
         return this->go(&impl::state_target_address, state::scan_continue);
     }
-    return this->fail(c, "a-instruction target can only be a label or an address");
+    return this->fail(std::format(invalid_char_target_label_or_addr_fmt, c));
 }
 
 auto scanner_base::impl::state_target_label(const unsigned char c) -> state {
-    if (isalpha(c) || c == '_' || c == '-') {
+    if (isalnum(c) || c == '_' || c == '-') {
         return state::scan_continue;
     }
     if (is_space(c) || c == '\n') {
@@ -262,7 +284,7 @@ auto scanner_base::impl::state_target_label(const unsigned char c) -> state {
     if (c == '/') {
         return this->go(&impl::state_comment_begin, state::scan_end_instruction);
     }
-    return this->fail(c, "encountered invalid character in target [@target]");
+    return this->fail(std::format(invalid_char_in_target_fmt, c));
 }
 
 auto scanner_base::impl::state_target_address(const unsigned char c) -> state {
@@ -275,7 +297,7 @@ auto scanner_base::impl::state_target_address(const unsigned char c) -> state {
     if (c == '/') {
         return this->go(&impl::state_comment_begin, state::scan_end_instruction);
     }
-    return this->fail(c, "encountered invalid character in target [@target]");
+    return this->fail(std::format(invalid_char_in_target_fmt, c));
 }
 
 auto scanner_base::impl::state_a(const unsigned char c) -> state {
@@ -284,6 +306,8 @@ auto scanner_base::impl::state_a(const unsigned char c) -> state {
         return state::scan_skip_space;
     }
     switch (c) {
+        case 'D':
+            return this->go(&impl::state_d, state::scan_continue);
         case 'M':
             return this->go(&impl::state_m, state::scan_continue);
         case '=':
@@ -292,7 +316,7 @@ auto scanner_base::impl::state_a(const unsigned char c) -> state {
             this->warn("JMP relies on A register to perform goto; this can lead to undefined behavior");
             return this->go(&impl::state_jump_begin, state::scan_continue);
         default:
-            return this->fail(c, "encountered invalid character in dest [dest = comp ; jump]");
+            return this->fail(std::format(invalid_char_in_dest_fmt, c));
     }
 }
 
@@ -311,7 +335,7 @@ auto scanner_base::impl::state_m(const unsigned char c) -> state {
         this->warn("JMP relies on A register to perform goto; this can lead to undefined behavior");
         return this->go(&impl::state_jump_begin, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in dest [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_dest_fmt, c));
 }
 
 auto scanner_base::impl::state_d(const unsigned char c) -> state {
@@ -325,7 +349,7 @@ auto scanner_base::impl::state_d(const unsigned char c) -> state {
     if (c == ';') {
         return this->go(&impl::state_jump_begin, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in dest [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_dest_fmt, c));
 }
 
 auto scanner_base::impl::state_equal(const unsigned char c) -> state {
@@ -344,21 +368,21 @@ auto scanner_base::impl::state_equal(const unsigned char c) -> state {
     if (is_one_of(c, "AMD")) {
         return this->go(&impl::state_comp_left, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in comp [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
 auto scanner_base::impl::state_comp_negative(const unsigned char c) -> state {
     if (is_one_of(c, "1AMD")) {
         return this->go(&impl::state_comp_right, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in comp [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
 auto scanner_base::impl::state_comp_negate(const unsigned char c) -> state {
     if (is_one_of(c, "AMD")) {
         return this->go(&impl::state_comp_right, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in comp [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
 auto scanner_base::impl::state_comp_left(const unsigned char c) -> state {
@@ -374,7 +398,7 @@ auto scanner_base::impl::state_comp_left(const unsigned char c) -> state {
     if (c == ';') {
         return this->go(&impl::state_jump_begin, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in comp [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
 auto scanner_base::impl::state_comp_operator(const unsigned char c) -> state {
@@ -384,7 +408,7 @@ auto scanner_base::impl::state_comp_operator(const unsigned char c) -> state {
     if (is_one_of(c, "1ADM")) {
         return this->go(&impl::state_comp_right, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in comp [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
 auto scanner_base::impl::state_comp_right(const unsigned char c) -> state {
@@ -398,7 +422,7 @@ auto scanner_base::impl::state_comp_right(const unsigned char c) -> state {
         case ';':
             return this->go(&impl::state_jump_begin, state::scan_continue);
         default:
-            return this->fail(c, "encountered invalid character in comp [dest = comp ; jump]");
+            return this->fail(std::format(invalid_char_in_comp_fmt, c));
     }
 }
 
@@ -409,7 +433,7 @@ auto scanner_base::impl::state_jump_begin(const unsigned char c) -> state {
     if (c == 'J') {
         return this->go(&impl::state_jump_j, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in jump [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
 auto scanner_base::impl::state_jump_j(const unsigned char c) -> state {
@@ -425,7 +449,7 @@ auto scanner_base::impl::state_jump_j(const unsigned char c) -> state {
         case 'M':
             return this->go(&impl::state_jump_m, state::scan_continue);
         default:
-            return this->fail(c, "encountered invalid character in jump [dest = comp ; jump]");
+            return this->fail(std::format(invalid_char_in_jump_fmt, c));
     }
 }
 
@@ -435,7 +459,7 @@ auto scanner_base::impl::state_jump_g_l(const unsigned char c) -> state {
         case 'E':
             return this->go(&impl::state_jump_end, state::scan_continue);
         default:
-            return this->fail(c, "encountered invalid character in jump [dest = comp ; jump]");
+            return this->fail(std::format(invalid_char_in_jump_fmt, c));
     }
 }
 
@@ -443,21 +467,21 @@ auto scanner_base::impl::state_jump_e(const unsigned char c) -> state {
     if (c == 'Q') {
         return this->go(&impl::state_jump_end, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in jump [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
 auto scanner_base::impl::state_jump_n(const unsigned char c) -> state {
     if (c == 'E') {
         return this->go(&impl::state_jump_end, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in jump [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
 auto scanner_base::impl::state_jump_m(const unsigned char c) -> state {
     if (c == 'P') {
         return this->go(&impl::state_jump_end, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in jump [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
 auto scanner_base::impl::state_jump_end(const unsigned char c) -> state {
@@ -471,7 +495,7 @@ auto scanner_base::impl::state_jump_end(const unsigned char c) -> state {
     if (c == '/') {
         return this->go(&impl::state_comment_begin, state::scan_end_instruction);
     }
-    return this->fail(c, "encountered invalid character in jump [dest = comp ; jump]");
+    return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
 auto scanner_base::impl::state_label_begin(const unsigned char c) -> state {
@@ -480,9 +504,9 @@ auto scanner_base::impl::state_label_begin(const unsigned char c) -> state {
         return this->go(&impl::state_label, state::scan_continue);
     }
     if (c == ')') {
-        return this->fail(' ', "label cannot be empty");
+        return this->fail("label cannot be empty");
     }
-    return this->fail(c, "encountered invalid character in label [(label)]");
+    return this->fail(std::format(invalid_char_in_label_fmt, c));
 }
 
 auto scanner_base::impl::state_label(const unsigned char c) -> state {
@@ -492,7 +516,7 @@ auto scanner_base::impl::state_label(const unsigned char c) -> state {
     if (c == ')') {
         return this->go(&impl::state_label_end, state::scan_continue);
     }
-    return this->fail(c, "encountered invalid character in label [(label)]");
+    return this->fail(std::format(invalid_char_in_label_fmt, c));
 }
 
 auto scanner_base::impl::state_label_end(const unsigned char c) -> state {
@@ -503,7 +527,7 @@ auto scanner_base::impl::state_label_end(const unsigned char c) -> state {
     if (c == '/') {
         return this->go(&impl::state_comment_begin, state::scan_end_label);
     }
-    return this->fail(c, "encountered invalid character in label [(label)]");
+    return this->fail(std::format(invalid_char_in_label_fmt, c));
 }
 
 auto scanner_base::impl::state_comment_begin(const unsigned char c) -> state {
@@ -514,7 +538,7 @@ auto scanner_base::impl::state_comment_begin(const unsigned char c) -> state {
         this->state_ = st::in_comment_block;
         return this->go(&impl::state_comment_multiline, state::scan_skip_space);
     }
-    return this->fail(c, "encountered invalid character");
+    return this->fail(std::format(invalid_char_fmt, c));
 }
 
 auto scanner_base::impl::state_comment_line(const unsigned char c) -> state {
@@ -551,9 +575,8 @@ void scanner_base::impl::warn(std::string msg) {
     this->diag_.emplace(severity::warning, this->line(), std::move(msg));
 }
 
-auto scanner_base::impl::fail(unsigned char c, std::string msg) -> state {
-    this->diag_.emplace(severity::error, this->line(),
-                        std::format("{:s}: {:c}", std::move(msg), c));
+auto scanner_base::impl::fail(std::string msg) -> state {
+    this->diag_.emplace(severity::error, this->line(), std::move(msg));
     this->step_ = &impl::state_in_error;
     this->state_ = st::in_error;
     return state::scan_error;
