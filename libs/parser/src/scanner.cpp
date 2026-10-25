@@ -6,7 +6,7 @@
 
 #include <format>
 
-using namespace hack_decoder;
+using namespace hack_asm;
 
 namespace {
     inline constexpr std::string_view invalid_char_fmt{
@@ -31,14 +31,6 @@ namespace {
         "encountered invalid character in label [ (label) ]: {:c}"
     };
 
-    enum class st : uint8_t {
-        in_label,
-        in_instruction,
-        in_comment_block,
-        in_error,
-        empty
-    };
-
     bool is_space(const unsigned char c) {
         return c == ' ' || c == '\t' || c == '\r';
     }
@@ -48,11 +40,10 @@ namespace {
     }
 }
 
-class scanner_base::impl {
+class scanner::impl {
     using step_fn = state (impl::*)(unsigned char);
 
     step_fn step_ = &impl::state_statement_begin;
-    st state_{st::empty};
     size_t instruction_count_{0};
     size_t line_count_{0};
     std::optional<diagnostic> diag_{};
@@ -129,70 +120,70 @@ private:
 
     auto state_in_error(unsigned char c) -> state;
 
-    void weak_warn(std::string msg);
+    void weak_warn(std::string_view msg);
 
-    void warn(std::string msg);
+    void warn(std::string_view msg);
 
-    auto fail(std::string msg) -> state;
+    auto fail(std::string_view msg) -> state;
 
     auto go(step_fn next, state emit) -> state;
 
-    void set_state(st expected, st next);
+    template<const std::string_view &Fmt>
+    auto end_statement(unsigned char c, state emit) -> state;
 
-    void reset_state(st expected);
+    bool is_terminal();
 };
 
 // scanner_base
 
-scanner_base::scanner_base()
+scanner::scanner()
     : pimpl(std::make_unique<impl>()) {
 }
 
-scanner_base::~scanner_base() = default;
+scanner::~scanner() = default;
 
-scanner_base::scanner_base(scanner_base &&) noexcept = default;
+scanner::scanner(scanner &&) noexcept = default;
 
-scanner_base &scanner_base::operator=(scanner_base &&) noexcept = default;
+scanner &scanner::operator=(scanner &&) noexcept = default;
 
-void scanner_base::reset() const {
+void scanner::reset() const {
     this->pimpl->reset();
 }
 
-auto scanner_base::feed(const std::byte c) const -> state {
+auto scanner::feed(const std::byte c) const -> state {
     return this->pimpl->feed(c);
 }
 
-auto scanner_base::eof() const -> state {
+auto scanner::eof() const -> state {
     return this->pimpl->eof();
 }
 
-void scanner_base::reset_diagnostic() const {
+void scanner::reset_diagnostic() const {
     this->pimpl->reset_diagnostic();
 }
 
-auto scanner_base::instruction() const -> size_t {
+auto scanner::instruction() const -> size_t {
     return this->pimpl->instruction();
 }
 
-auto scanner_base::line() const -> size_t {
+auto scanner::line() const -> size_t {
     return this->pimpl->line();
 }
 
-auto scanner_base::last_diagnostic() const -> const std::optional<diagnostic> & {
+auto scanner::last_diagnostic() const -> const std::optional<diagnostic> & {
     return this->pimpl->last_diagnostic();
 }
 
 // scanner_base::impl
 
-void scanner_base::impl::reset() {
+void scanner::impl::reset() {
     this->step_ = &impl::state_statement_begin;
-    this->state_ = st::empty;
     this->instruction_count_ = 0;
     this->line_count_ = 1;
     this->diag_.reset();
 }
 
-auto scanner_base::impl::feed(const std::byte b) -> state {
+auto scanner::impl::feed(const std::byte b) -> state {
     const auto c = std::to_integer<unsigned char>(b);
     const auto result = (this->*step_)(c);
     if (result == state::scan_end_instruction) ++this->instruction_count_;
@@ -200,41 +191,39 @@ auto scanner_base::impl::feed(const std::byte b) -> state {
     return result;
 }
 
-auto scanner_base::impl::eof() -> state {
-    switch (this->state_) {
-        case st::in_label:
-            return this->fail("unexpected end for label");
-        case st::in_instruction:
-            return this->fail("unexpected end for instruction");
-        case st::in_comment_block:
-            return this->fail("unexpected end for comment block");
-        case st::in_error:
-            return state::scan_error;
-        default:
-            if (this->step_ != &impl::state_statement_begin) {
-                return this->fail("unexpected end of file");
-            }
+auto scanner::impl::eof() -> state {
+    if (this->is_terminal()) {
+        return state::scan_end;
     }
-    return state::scan_end;
+    if (this->step_ == &impl::state_label_begin || this->step_ == &impl::state_label) {
+        return this->fail("unexpected end for label");
+    }
+    if (this->step_ == &impl::state_comment_multiline || this->step_ == &impl::state_comment_multiline_end) {
+        return this->fail("unexpected end for comment block");
+    }
+    if (this->step_ == &impl::state_in_error) {
+        return state::scan_error;
+    }
+    return this->fail("unexpected end of file");
 }
 
-void scanner_base::impl::reset_diagnostic() {
+void scanner::impl::reset_diagnostic() {
     this->diag_.reset();
 }
 
-auto scanner_base::impl::instruction() const -> size_t {
+auto scanner::impl::instruction() const -> size_t {
     return this->instruction_count_;
 }
 
-auto scanner_base::impl::line() const -> size_t {
+auto scanner::impl::line() const -> size_t {
     return this->line_count_;
 }
 
-auto scanner_base::impl::last_diagnostic() const -> const std::optional<diagnostic> & {
+auto scanner::impl::last_diagnostic() const -> const std::optional<diagnostic> & {
     return this->diag_;
 }
 
-auto scanner_base::impl::state_statement_begin(const unsigned char c) -> state {
+auto scanner::impl::state_statement_begin(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
@@ -263,8 +252,7 @@ auto scanner_base::impl::state_statement_begin(const unsigned char c) -> state {
     }
 }
 
-auto scanner_base::impl::state_a_instruction_begin(const unsigned char c) -> state {
-    this->state_ = st::in_instruction;
+auto scanner::impl::state_a_instruction_begin(const unsigned char c) -> state {
     if (isalpha(c) || c == '_' || c == '-') {
         return this->go(&impl::state_target_label, state::scan_continue);
     }
@@ -274,34 +262,21 @@ auto scanner_base::impl::state_a_instruction_begin(const unsigned char c) -> sta
     return this->fail(std::format(invalid_char_target_label_or_addr_fmt, c));
 }
 
-auto scanner_base::impl::state_target_label(const unsigned char c) -> state {
+auto scanner::impl::state_target_label(const unsigned char c) -> state {
     if (isalnum(c) || c == '_' || c == '-') {
         return state::scan_continue;
     }
-    if (is_space(c) || c == '\n') {
-        return this->go(&impl::state_statement_begin, state::scan_end_instruction);
-    }
-    if (c == '/') {
-        return this->go(&impl::state_comment_begin, state::scan_end_instruction);
-    }
-    return this->fail(std::format(invalid_char_in_target_fmt, c));
+    return this->end_statement<invalid_char_in_target_fmt>(c, state::scan_end_instruction);
 }
 
-auto scanner_base::impl::state_target_address(const unsigned char c) -> state {
+auto scanner::impl::state_target_address(const unsigned char c) -> state {
     if (isdigit(c)) {
         return state::scan_continue;
     }
-    if (is_space(c) || c == '\n') {
-        return this->go(&impl::state_statement_begin, state::scan_end_instruction);
-    }
-    if (c == '/') {
-        return this->go(&impl::state_comment_begin, state::scan_end_instruction);
-    }
-    return this->fail(std::format(invalid_char_in_target_fmt, c));
+    return this->end_statement<invalid_char_in_target_fmt>(c, state::scan_end_instruction);
 }
 
-auto scanner_base::impl::state_a(const unsigned char c) -> state {
-    this->set_state(st::empty, st::in_instruction);
+auto scanner::impl::state_a(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
@@ -320,8 +295,7 @@ auto scanner_base::impl::state_a(const unsigned char c) -> state {
     }
 }
 
-auto scanner_base::impl::state_m(const unsigned char c) -> state {
-    this->set_state(st::empty, st::in_instruction);
+auto scanner::impl::state_m(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
@@ -338,8 +312,7 @@ auto scanner_base::impl::state_m(const unsigned char c) -> state {
     return this->fail(std::format(invalid_char_in_dest_fmt, c));
 }
 
-auto scanner_base::impl::state_d(const unsigned char c) -> state {
-    this->set_state(st::empty, st::in_instruction);
+auto scanner::impl::state_d(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
@@ -352,7 +325,7 @@ auto scanner_base::impl::state_d(const unsigned char c) -> state {
     return this->fail(std::format(invalid_char_in_dest_fmt, c));
 }
 
-auto scanner_base::impl::state_equal(const unsigned char c) -> state {
+auto scanner::impl::state_equal(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
@@ -371,37 +344,34 @@ auto scanner_base::impl::state_equal(const unsigned char c) -> state {
     return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
-auto scanner_base::impl::state_comp_negative(const unsigned char c) -> state {
+auto scanner::impl::state_comp_negative(const unsigned char c) -> state {
     if (is_one_of(c, "1AMD")) {
         return this->go(&impl::state_comp_right, state::scan_continue);
     }
     return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
-auto scanner_base::impl::state_comp_negate(const unsigned char c) -> state {
+auto scanner::impl::state_comp_negate(const unsigned char c) -> state {
     if (is_one_of(c, "AMD")) {
         return this->go(&impl::state_comp_right, state::scan_continue);
     }
     return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
-auto scanner_base::impl::state_comp_left(const unsigned char c) -> state {
+auto scanner::impl::state_comp_left(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
     if (is_one_of(c, "+-&|")) {
         return this->go(&impl::state_comp_operator, state::scan_continue);
     }
-    if (c == '\n') {
-        return this->go(&impl::state_statement_begin, state::scan_end_instruction);
-    }
     if (c == ';') {
         return this->go(&impl::state_jump_begin, state::scan_continue);
     }
-    return this->fail(std::format(invalid_char_in_comp_fmt, c));
+    return this->end_statement<invalid_char_in_comp_fmt>(c, state::scan_end_instruction);
 }
 
-auto scanner_base::impl::state_comp_operator(const unsigned char c) -> state {
+auto scanner::impl::state_comp_operator(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
@@ -411,22 +381,17 @@ auto scanner_base::impl::state_comp_operator(const unsigned char c) -> state {
     return this->fail(std::format(invalid_char_in_comp_fmt, c));
 }
 
-auto scanner_base::impl::state_comp_right(const unsigned char c) -> state {
-    this->set_state(st::empty, st::in_instruction);
+auto scanner::impl::state_comp_right(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
-    switch (c) {
-        case '\n':
-            return this->go(&impl::state_statement_begin, state::scan_end_instruction);
-        case ';':
-            return this->go(&impl::state_jump_begin, state::scan_continue);
-        default:
-            return this->fail(std::format(invalid_char_in_comp_fmt, c));
+    if (c == ';') {
+        return this->go(&impl::state_jump_begin, state::scan_continue);
     }
+    return this->end_statement<invalid_char_in_comp_fmt>(c, state::scan_end_instruction);
 }
 
-auto scanner_base::impl::state_jump_begin(const unsigned char c) -> state {
+auto scanner::impl::state_jump_begin(const unsigned char c) -> state {
     if (is_space(c)) {
         return state::scan_skip_space;
     }
@@ -436,8 +401,7 @@ auto scanner_base::impl::state_jump_begin(const unsigned char c) -> state {
     return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
-auto scanner_base::impl::state_jump_j(const unsigned char c) -> state {
-    this->set_state(st::empty, st::in_instruction);
+auto scanner::impl::state_jump_j(const unsigned char c) -> state {
     switch (c) {
         case 'G':
         case 'L':
@@ -453,7 +417,7 @@ auto scanner_base::impl::state_jump_j(const unsigned char c) -> state {
     }
 }
 
-auto scanner_base::impl::state_jump_g_l(const unsigned char c) -> state {
+auto scanner::impl::state_jump_g_l(const unsigned char c) -> state {
     switch (c) {
         case 'T':
         case 'E':
@@ -463,43 +427,32 @@ auto scanner_base::impl::state_jump_g_l(const unsigned char c) -> state {
     }
 }
 
-auto scanner_base::impl::state_jump_e(const unsigned char c) -> state {
+auto scanner::impl::state_jump_e(const unsigned char c) -> state {
     if (c == 'Q') {
         return this->go(&impl::state_jump_end, state::scan_continue);
     }
     return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
-auto scanner_base::impl::state_jump_n(const unsigned char c) -> state {
+auto scanner::impl::state_jump_n(const unsigned char c) -> state {
     if (c == 'E') {
         return this->go(&impl::state_jump_end, state::scan_continue);
     }
     return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
-auto scanner_base::impl::state_jump_m(const unsigned char c) -> state {
+auto scanner::impl::state_jump_m(const unsigned char c) -> state {
     if (c == 'P') {
         return this->go(&impl::state_jump_end, state::scan_continue);
     }
     return this->fail(std::format(invalid_char_in_jump_fmt, c));
 }
 
-auto scanner_base::impl::state_jump_end(const unsigned char c) -> state {
-    this->reset_state(st::in_instruction);
-    if (is_space(c)) {
-        return this->go(&impl::state_statement_begin, state::scan_end_instruction);
-    }
-    if (c == '\n') {
-        return this->go(&impl::state_statement_begin, state::scan_end_instruction);
-    }
-    if (c == '/') {
-        return this->go(&impl::state_comment_begin, state::scan_end_instruction);
-    }
-    return this->fail(std::format(invalid_char_in_jump_fmt, c));
+auto scanner::impl::state_jump_end(const unsigned char c) -> state {
+    return this->end_statement<invalid_char_in_jump_fmt>(c, state::scan_end_instruction);
 }
 
-auto scanner_base::impl::state_label_begin(const unsigned char c) -> state {
-    this->state_ = st::in_label;
+auto scanner::impl::state_label_begin(const unsigned char c) -> state {
     if (isalnum(c) || c == '_' || c == '-') {
         return this->go(&impl::state_label, state::scan_continue);
     }
@@ -509,7 +462,7 @@ auto scanner_base::impl::state_label_begin(const unsigned char c) -> state {
     return this->fail(std::format(invalid_char_in_label_fmt, c));
 }
 
-auto scanner_base::impl::state_label(const unsigned char c) -> state {
+auto scanner::impl::state_label(const unsigned char c) -> state {
     if (isalnum(c) || c == '_' || c == '-') {
         return state::scan_continue;
     }
@@ -519,78 +472,84 @@ auto scanner_base::impl::state_label(const unsigned char c) -> state {
     return this->fail(std::format(invalid_char_in_label_fmt, c));
 }
 
-auto scanner_base::impl::state_label_end(const unsigned char c) -> state {
-    this->reset_state(st::in_label);
-    if (is_space(c) || c == '\n') {
-        return this->go(&impl::state_statement_begin, state::scan_end_label);
-    }
-    if (c == '/') {
-        return this->go(&impl::state_comment_begin, state::scan_end_label);
-    }
-    return this->fail(std::format(invalid_char_in_label_fmt, c));
+auto scanner::impl::state_label_end(const unsigned char c) -> state {
+    return this->end_statement<invalid_char_in_label_fmt>(c, state::scan_end_label);
 }
 
-auto scanner_base::impl::state_comment_begin(const unsigned char c) -> state {
+auto scanner::impl::state_comment_begin(const unsigned char c) -> state {
     if (c == '/') {
         return this->go(&impl::state_comment_line, state::scan_skip_space);
     }
     if (c == '*') {
-        this->state_ = st::in_comment_block;
         return this->go(&impl::state_comment_multiline, state::scan_skip_space);
     }
     return this->fail(std::format(invalid_char_fmt, c));
 }
 
-auto scanner_base::impl::state_comment_line(const unsigned char c) -> state {
+auto scanner::impl::state_comment_line(const unsigned char c) -> state {
     if (c == '\n') {
         return this->go(&impl::state_statement_begin, state::scan_skip_space);
     }
     return state::scan_skip_space;
 }
 
-auto scanner_base::impl::state_comment_multiline(const unsigned char c) -> state {
+auto scanner::impl::state_comment_multiline(const unsigned char c) -> state {
     if (c == '*') {
         return this->go(&impl::state_comment_multiline_end, state::scan_skip_space);
     }
     return state::scan_skip_space;
 }
 
-auto scanner_base::impl::state_comment_multiline_end(const unsigned char c) -> state {
+auto scanner::impl::state_comment_multiline_end(const unsigned char c) -> state {
     if (c == '/') {
-        this->reset_state(st::in_comment_block);
         return this->go(&impl::state_statement_begin, state::scan_skip_space);
     }
     return this->go(&impl::state_comment_multiline, state::scan_skip_space);
 }
 
-auto scanner_base::impl::state_in_error(unsigned char c) -> state { // NOLINT(*-convert-member-functions-to-static)
+auto scanner::impl::state_in_error(unsigned char) -> state {
     return state::scan_error;
 }
 
-void scanner_base::impl::weak_warn(std::string msg) {
-    this->diag_.emplace(severity::weak_warning, this->line(), std::move(msg));
+void scanner::impl::weak_warn(const std::string_view msg) {
+    this->diag_.emplace(severity::weak_warning, this->line(), std::string{msg});
 }
 
-void scanner_base::impl::warn(std::string msg) {
-    this->diag_.emplace(severity::warning, this->line(), std::move(msg));
+void scanner::impl::warn(const std::string_view msg) {
+    this->diag_.emplace(severity::warning, this->line(), std::string{msg});
 }
 
-auto scanner_base::impl::fail(std::string msg) -> state {
-    this->diag_.emplace(severity::error, this->line(), std::move(msg));
+auto scanner::impl::fail(const std::string_view msg) -> state {
+    this->diag_.emplace(severity::error, this->line(), std::string{msg});
     this->step_ = &impl::state_in_error;
-    this->state_ = st::in_error;
     return state::scan_error;
 }
 
-auto scanner_base::impl::go(const step_fn next, const state emit) -> state {
+auto scanner::impl::go(const step_fn next, const state emit) -> state {
     this->step_ = next;
     return emit;
 }
 
-void scanner_base::impl::set_state(const st expected, const st next) {
-    if (this->state_ == expected) this->state_ = next;
+template<const std::string_view &Fmt>
+auto scanner::impl::end_statement(unsigned char c, state emit) -> state {
+    if (is_space(c) || c == '\n') {
+        return this->go(&impl::state_statement_begin, emit);
+    }
+    if (c == '/') {
+        return this->go(&impl::state_comment_begin, emit);
+    }
+    return this->fail(std::format(Fmt, c));
 }
 
-void scanner_base::impl::reset_state(const st expected) {
-    if (this->state_ == expected) this->state_ = st::empty;
+bool scanner::impl::is_terminal() {
+    const bool is_instr_terminal = (
+        this->step_ == &impl::state_target_label || this->step_ == &impl::state_target_address ||
+        this->step_ == &impl::state_comp_left || this->step_ == &impl::state_comp_right ||
+        this->step_ == &impl::state_jump_end
+    );
+    if (this->step_ == &impl::state_statement_begin || this->step_ == &impl::state_label_end ||
+        is_instr_terminal || this->step_ == &impl::state_comment_line) {
+        return true;
+    }
+    return false;
 }

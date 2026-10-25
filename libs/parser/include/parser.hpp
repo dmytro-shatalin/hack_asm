@@ -16,7 +16,7 @@
 #include <vector>
 
 
-namespace hack_decoder {
+namespace hack_asm {
     enum class state : uint8_t {
         scan_continue,
         scan_begin_a_instruction,
@@ -49,27 +49,26 @@ namespace hack_decoder {
 
     using instruction_t = std::variant<a_instruction, c_instruction>;
 
-    class scanner_base {
+    class scanner {
         class impl;
 
         std::unique_ptr<impl> pimpl;
 
     public:
         // Constructors
-        scanner_base();
+        scanner();
 
-        ~scanner_base();
+        ~scanner();
 
-        scanner_base(scanner_base &) = delete;
+        scanner(scanner &) = delete;
 
-        scanner_base(scanner_base &&) noexcept;
+        scanner(scanner &&) noexcept;
 
         // Operators
-        scanner_base &operator=(scanner_base &) = delete;
+        scanner &operator=(scanner &) = delete;
 
-        scanner_base &operator=(scanner_base &&) noexcept;
+        scanner &operator=(scanner &&) noexcept;
 
-    protected:
         void reset() const;
 
         [[nodiscard]] auto feed(std::byte c) const -> state;
@@ -85,81 +84,30 @@ namespace hack_decoder {
         void reset_diagnostic() const;
     };
 
-    class scanner : scanner_base {
-    public:
-        void reset() const {
-            scanner_base::reset();
-        }
-
-        [[nodiscard]] auto feed(const std::byte c) const -> state {
-            return scanner_base::feed(c);
-        }
-
-        [[nodiscard]] auto eof() const -> state {
-            return scanner_base::eof();
-        }
-
-        [[nodiscard]] auto instruction() const -> size_t {
-            return scanner_base::instruction();
-        }
-
-        [[nodiscard]] auto line() const -> size_t {
-            return scanner_base::line();
-        }
-
-        [[nodiscard]] auto last_diagnostic() const -> std::optional<diagnostic> {
-            return scanner_base::last_diagnostic();
-        }
-
-        void reset_diagnostic() const {
-            scanner_base::reset_diagnostic();
-        }
-    };
-
-    class parser_base {
+    class parser {
         class impl;
         std::unique_ptr<impl> pimpl;
 
     public:
         // Constructors
-        explicit parser_base(std::vector<std::byte> buffer);
+        explicit parser(std::vector<std::byte> buffer);
 
-        ~parser_base();
+        ~parser();
 
-        parser_base(parser_base &) = delete;
+        parser(parser &) = delete;
 
-        parser_base(parser_base &&) noexcept;
+        parser(parser &&) noexcept;
 
         // Operators
-        parser_base &operator=(parser_base &) = delete;
+        parser &operator=(parser &) = delete;
 
-        parser_base &operator=(parser_base &&) noexcept;
+        parser &operator=(parser &&) noexcept;
 
-    protected:
         void reset() const;
 
         [[nodiscard]] auto parse() const -> std::expected<std::vector<instruction_t>, diagnostic>;
 
         [[nodiscard]] auto warnings() const -> std::span<const diagnostic>;
-    };
-
-    class parser : parser_base {
-    public:
-        explicit parser(std::vector<std::byte> buffer)
-            : parser_base(std::move(buffer)) {
-        }
-
-        void reset() const {
-            parser_base::reset();
-        }
-
-        [[nodiscard]] auto parse() const -> std::expected<std::vector<instruction_t>, diagnostic> {
-            return parser_base::parse();
-        }
-
-        [[nodiscard]] auto warnings() const -> std::span<const diagnostic> {
-            return parser_base::warnings();
-        }
     };
 }
 
