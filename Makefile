@@ -1,4 +1,4 @@
-.PHONY: all prepare build exec
+.PHONY: all prepare build exec test
 
 all: prepare build
 
@@ -12,3 +12,8 @@ build:
 
 exec:
 	./build/bin/hack_asm --help -h
+
+test:
+	cmake -S . -B build -DBUILD_TESTING=ON
+	cmake --build build
+	ctest --test-dir build --output-on-failure
