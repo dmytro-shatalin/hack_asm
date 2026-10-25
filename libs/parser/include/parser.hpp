@@ -2,8 +2,7 @@
 // Created by dshatalin on 10/15/26.
 //
 
-#ifndef HACK_ASM_DECODER_H
-#define HACK_ASM_DECODER_H
+#pragma once
 
 #include <cstdint>
 #include <expected>
@@ -12,9 +11,7 @@
 #include <optional>
 #include <stack>
 #include <string>
-#include <utility>
 #include <vector>
-
 
 namespace hack_asm {
     enum class state : uint8_t {
@@ -110,6 +107,3 @@ namespace hack_asm {
         [[nodiscard]] auto warnings() const -> std::span<const diagnostic>;
     };
 }
-
-
-#endif //HACK_ASM_DECODER_H

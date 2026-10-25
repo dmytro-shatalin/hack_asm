@@ -24,6 +24,7 @@ set(HACK_ASM_WARNINGS "hack_asm_warnings")
 
 set(HACK_ASM_WARNING_OPTIONS "-Wall" "-Wextra" "-Wpedantic")
 
+set(ARGS_LIB "args_lib")
 set(PARSER_LIB "parser_lib")
 set(ARGS_PARSER_DEP "args_parser_dep")
 set(GOOGLETEST_DEP "googletest_dep")
@@ -50,7 +51,7 @@ if (COMPILE_EXECUTABLE)
     message(STATUS "Executable will be compiled")
     if (ENABLE_WARNINGS)
         target_link_libraries(${HACK_ASM_TARGET} PRIVATE
-            hack_asm_warnings
+                ${HACK_ASM_WARNINGS}
         )
     endif ()
 else ()
@@ -97,9 +98,8 @@ if (COMPILE_EXECUTABLE)
             src/main.cpp
     )
     target_link_libraries(${HACK_ASM_TARGET} PRIVATE
-            ${HACK_ASM_CONFIG}
+            ${ARGS_LIB}
             ${PARSER_LIB}
-            args_parser::args_parser
     )
 endif ()
 
