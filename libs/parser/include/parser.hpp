@@ -37,17 +37,17 @@ namespace hack_decoder {
         std::string msg;
     };
 
-    struct a_statement {
+    struct a_instruction {
         std::uint16_t target;
     };
 
-    struct c_statement {
+    struct c_instruction {
         std::uint8_t dest;
         std::uint8_t comp;
         std::uint8_t jump;
     };
 
-    using statement_t = std::variant<a_statement, c_statement>;
+    using instruction_t = std::variant<a_instruction, c_instruction>;
 
     class scanner_base {
         class impl;
@@ -138,7 +138,7 @@ namespace hack_decoder {
     protected:
         void reset() const;
 
-        [[nodiscard]] auto parse() const -> std::expected<std::vector<statement_t>, diagnostic>;
+        [[nodiscard]] auto parse() const -> std::expected<std::vector<instruction_t>, diagnostic>;
 
         [[nodiscard]] auto warnings() const -> std::span<const diagnostic>;
     };
@@ -153,7 +153,7 @@ namespace hack_decoder {
             parser_base::reset();
         }
 
-        [[nodiscard]] auto parse() const -> std::expected<std::vector<statement_t>, diagnostic> {
+        [[nodiscard]] auto parse() const -> std::expected<std::vector<instruction_t>, diagnostic> {
             return parser_base::parse();
         }
 
