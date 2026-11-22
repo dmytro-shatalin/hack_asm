@@ -26,6 +26,7 @@ set(HACK_ASM_WARNING_OPTIONS "-Wall" "-Wextra" "-Wpedantic")
 
 set(ARGS_LIB "args_lib")
 set(PARSER_LIB "parser_lib")
+set(UTIL_LIB "util_lib")
 set(ARGS_PARSER_DEP "args_parser_dep")
 set(THREADLIB_DEP "threadlib_dep")
 set(GOOGLETEST_DEP "googletest_dep")
@@ -78,14 +79,14 @@ if(COMPILE_EXECUTABLE)
     FetchContent_Declare(
         ${ARGS_PARSER_DEP}
         GIT_REPOSITORY https://github.com/dmytro-shatalin/args_parser
-        GIT_TAG v1.0.3
+        GIT_TAG v1.0.0
     )
     FetchContent_MakeAvailable(${ARGS_PARSER_DEP})
 
     FetchContent_Declare(
         ${THREADLIB_DEP}
         GIT_REPOSITORY https://github.com/dmytro-shatalin/threadlib
-        GIT_TAG v1.0.0
+        GIT_TAG v1.0.1
     )
     FetchContent_MakeAvailable(${THREADLIB_DEP})
 endif()
@@ -108,6 +109,7 @@ if(COMPILE_EXECUTABLE)
     target_link_libraries(${HACK_ASM_TARGET} PRIVATE
         ${ARGS_LIB}
         ${PARSER_LIB}
+        ${UTIL_LIB}
         threadlib::threadlib
     )
 endif()
