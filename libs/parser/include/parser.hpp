@@ -6,104 +6,106 @@
 
 #include <cstdint>
 #include <expected>
-#include <functional>
 #include <memory>
 #include <optional>
-#include <stack>
+#include <span>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace hack_asm {
-    enum class state : uint8_t {
-        scan_continue,
-        scan_begin_a_instruction,
-        scan_begin_c_instruction,
-        scan_end_instruction,
-        scan_begin_label,
-        scan_end_label,
-        scan_skip_space,
-        scan_end,
-        scan_error,
-    };
+enum class state : uint8_t {
+  scan_continue,
+  scan_begin_a_instruction,
+  scan_begin_c_instruction,
+  scan_end_instruction,
+  scan_begin_label,
+  scan_end_label,
+  scan_skip_space,
+  scan_end,
+  scan_error,
+};
 
-    enum class severity : uint8_t { weak_warning, warning, error };
+enum class severity : uint8_t { weak_warning, warning, error };
 
-    struct diagnostic {
-        severity level;
-        std::size_t line;
-        std::string msg;
-    };
+struct diagnostic {
+  severity level;
+  std::size_t line;
+  std::string msg;
+};
 
-    struct a_instruction {
-        std::uint16_t target;
-    };
+struct a_instruction {
+  std::uint16_t target;
+};
 
-    struct c_instruction {
-        std::uint8_t dest;
-        std::uint8_t comp;
-        std::uint8_t jump;
-    };
+struct c_instruction {
+  std::uint8_t dest;
+  std::uint8_t comp;
+  std::uint8_t jump;
+};
 
-    using instruction_t = std::variant<a_instruction, c_instruction>;
+using instruction_t = std::variant<a_instruction, c_instruction>;
 
-    class scanner {
-        class impl;
+class scanner {
+  class impl;
 
-        std::unique_ptr<impl> pimpl;
+  std::unique_ptr<impl> pimpl;
 
-    public:
-        // Constructors
-        scanner();
+public:
+  // Constructors
+  scanner();
 
-        ~scanner();
+  ~scanner();
 
-        scanner(scanner &) = delete;
+  scanner(scanner &) = delete;
 
-        scanner(scanner &&) noexcept;
+  scanner(scanner &&) noexcept;
 
-        // Operators
-        scanner &operator=(scanner &) = delete;
+  // Operators
+  scanner &operator=(scanner &) = delete;
 
-        scanner &operator=(scanner &&) noexcept;
+  scanner &operator=(scanner &&) noexcept;
 
-        void reset() const;
+  void reset() const;
 
-        [[nodiscard]] auto feed(std::byte c) const -> state;
+  [[nodiscard]] auto feed(std::byte c) const -> state;
 
-        [[nodiscard]] auto eof() const -> state;
+  [[nodiscard]] auto eof() const -> state;
 
-        [[nodiscard]] auto instruction() const -> size_t;
+  [[nodiscard]] auto instruction() const -> size_t;
 
-        [[nodiscard]] auto line() const -> size_t;
+  [[nodiscard]] auto line() const -> size_t;
 
-        [[nodiscard]] auto last_diagnostic() const -> const std::optional<diagnostic> &;
+  [[nodiscard]] auto last_diagnostic() const
+      -> const std::optional<diagnostic> &;
 
-        void reset_diagnostic() const;
-    };
+  void reset_diagnostic() const;
+};
 
-    class parser {
-        class impl;
-        std::unique_ptr<impl> pimpl;
+class parser {
+  class impl;
+  std::unique_ptr<impl> pimpl;
 
-    public:
-        // Constructors
-        explicit parser(std::vector<std::byte> buffer);
+public:
+  // Constructors
+  explicit parser(std::vector<std::byte> buffer);
 
-        ~parser();
+  ~parser();
 
-        parser(parser &) = delete;
+  parser(parser &) = delete;
 
-        parser(parser &&) noexcept;
+  parser(parser &&) noexcept;
 
-        // Operators
-        parser &operator=(parser &) = delete;
+  // Operators
+  parser &operator=(parser &) = delete;
 
-        parser &operator=(parser &&) noexcept;
+  parser &operator=(parser &&) noexcept;
 
-        void reset() const;
+  void reset() const;
 
-        [[nodiscard]] auto parse() const -> std::expected<std::vector<instruction_t>, diagnostic>;
+  [[nodiscard]] auto parse() const
+      -> std::expected<std::vector<instruction_t>, diagnostic>;
 
-        [[nodiscard]] auto warnings() const -> std::span<const diagnostic>;
-    };
-}
+  [[nodiscard]] auto warnings() const -> std::span<const diagnostic>;
+};
+} // namespace hack_asm

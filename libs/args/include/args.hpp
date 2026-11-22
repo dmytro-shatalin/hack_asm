@@ -3,19 +3,22 @@
 //
 
 #pragma once
+
+#include <cstdint>
 #include <string>
 
 namespace hack_asm {
-    struct args {
-        std::string path;
-        std::string format;
-        std::string output;
-        bool recursive{};
-        bool verbose{};
-        bool quiet{};
-    };
+struct args {
+  std::string path;
+  std::string format;
+  std::string output;
+  std::uint16_t threads;
+  bool recursive{};
+  bool verbose{};
+  bool quiet{};
+};
 
-    enum class args_result { run, exit_ok, exit_error };
+enum class args_result { run, exit_ok, exit_error };
 
-    auto parse_args(int argc, const char *argv[], args &out) -> args_result;
-}
+auto parse_args(int argc, const char *argv[], args &out) -> args_result;
+} // namespace hack_asm

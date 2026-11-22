@@ -27,6 +27,7 @@ set(HACK_ASM_WARNING_OPTIONS "-Wall" "-Wextra" "-Wpedantic")
 set(ARGS_LIB "args_lib")
 set(PARSER_LIB "parser_lib")
 set(ARGS_PARSER_DEP "args_parser_dep")
+set(THREADLIB_DEP "threadlib_dep")
 set(GOOGLETEST_DEP "googletest_dep")
 
 set(HACK_ASM_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/include")
@@ -41,30 +42,30 @@ option(WARNINGS_AS_ERRORS "Whether to treat warnings as errors" OFF)
 # Warnings
 
 add_library(${HACK_ASM_WARNINGS} INTERFACE)
-if (WARNINGS_AS_ERRORS)
+if(WARNINGS_AS_ERRORS)
     list(APPEND HACK_ASM_WARNING_OPTIONS "-Werror")
-endif ()
+endif()
 target_compile_options(${HACK_ASM_WARNINGS} INTERFACE ${HACK_ASM_WARNING_OPTIONS})
 
-if (COMPILE_EXECUTABLE)
+if(COMPILE_EXECUTABLE)
     add_executable(${HACK_ASM_TARGET})
     message(STATUS "Executable will be compiled")
-    if (ENABLE_WARNINGS)
+    if(ENABLE_WARNINGS)
         target_link_libraries(${HACK_ASM_TARGET} PRIVATE
-                ${HACK_ASM_WARNINGS}
+            ${HACK_ASM_WARNINGS}
         )
-    endif ()
-else ()
+    endif()
+else()
     message(STATUS "Executable won't be compiled")
-endif ()
+endif()
 
-if (COMPILE_TESTS)
+if(COMPILE_TESTS)
     enable_testing()
     add_executable(${HACK_ASM_TESTS})
     message(STATUS "Tests will be compiled")
-else ()
+else()
     message(STATUS "Tests won't be compiled")
-endif ()
+endif()
 
 # Dependencies
 
@@ -73,44 +74,52 @@ add_subdirectory(libs)
 
 # External Dependencies
 
-if (COMPILE_EXECUTABLE)
+if(COMPILE_EXECUTABLE)
     FetchContent_Declare(
-            ${ARGS_PARSER_DEP}
-            GIT_REPOSITORY https://github.com/dmytro-shatalin/args_parser
-            GIT_TAG v1.0.3
+        ${ARGS_PARSER_DEP}
+        GIT_REPOSITORY https://github.com/dmytro-shatalin/args_parser
+        GIT_TAG v1.0.3
     )
     FetchContent_MakeAvailable(${ARGS_PARSER_DEP})
-endif ()
 
-if (COMPILE_TESTS)
     FetchContent_Declare(
-            ${GOOGLETEST_DEP}
-            GIT_REPOSITORY https://github.com/google/googletest
-            GIT_TAG v1.18.0
+        ${THREADLIB_DEP}
+        GIT_REPOSITORY https://github.com/dmytro-shatalin/threadlib
+        GIT_TAG v1.0.0
+    )
+    FetchContent_MakeAvailable(${THREADLIB_DEP})
+endif()
+
+if(COMPILE_TESTS)
+    FetchContent_Declare(
+        ${GOOGLETEST_DEP}
+        GIT_REPOSITORY https://github.com/google/googletest
+        GIT_TAG v1.18.0
     )
     FetchContent_MakeAvailable(${GOOGLETEST_DEP})
-endif ()
+endif()
 
 # Targets
 
-if (COMPILE_EXECUTABLE)
+if(COMPILE_EXECUTABLE)
     target_sources(${HACK_ASM_TARGET} PRIVATE
-            src/main.cpp
+        src/main.cpp
     )
     target_link_libraries(${HACK_ASM_TARGET} PRIVATE
-            ${ARGS_LIB}
-            ${PARSER_LIB}
+        ${ARGS_LIB}
+        ${PARSER_LIB}
+        threadlib::threadlib
     )
-endif ()
+endif()
 
-if (COMPILE_TESTS)
+if(COMPILE_TESTS)
     target_link_libraries(${HACK_ASM_TESTS} PRIVATE
-            ${HACK_ASM_WARNINGS}
-            ${PARSER_LIB}
-            GTest::gtest_main
+        ${HACK_ASM_WARNINGS}
+        ${PARSER_LIB}
+        GTest::gtest_main
     )
     include(GoogleTest)
     gtest_discover_tests(${HACK_ASM_TESTS} PROPERTIES
-            TIMEOUT 5
+        TIMEOUT 5
     )
-endif ()
+endif()
