@@ -9,6 +9,7 @@
 #include <ranges>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 using namespace hack_asm;
 
@@ -149,7 +150,7 @@ public:
 
   auto parse() -> std::expected<std::vector<instruction_t>, diagnostic>;
 
-  auto warnings() const -> std::span<const diagnostic>;
+  auto warnings() -> std::vector<diagnostic>;
 
 private:
   auto read_offset() const -> size_t { return this->off_; };
@@ -191,7 +192,7 @@ auto parser::parse() const
   return this->pimpl->parse();
 }
 
-auto parser::warnings() const -> std::span<const diagnostic> {
+auto parser::warnings() -> std::vector<diagnostic> {
   return this->pimpl->warnings();
 }
 
@@ -379,6 +380,6 @@ auto parser::impl::parse()
   return statements;
 }
 
-auto parser::impl::warnings() const -> std::span<const diagnostic> {
+auto parser::impl::warnings() -> std::vector<diagnostic> {
   return this->warnings_;
 }

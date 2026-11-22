@@ -6,9 +6,9 @@
 
 #include <cstdint>
 #include <expected>
+#include <format>
 #include <memory>
 #include <optional>
-#include <span>
 #include <string>
 #include <variant>
 #include <vector>
@@ -45,6 +45,20 @@ struct c_instruction {
 };
 
 using instruction_t = std::variant<a_instruction, c_instruction>;
+
+class parse_error : public std::runtime_error {
+  hack_asm::diagnostic diagnostic_;
+
+public:
+  explicit parse_error(hack_asm::diagnostic d)
+      : std::runtime_error{
+            std::format("parse error at line {}: {}", d.line, d.msg)},
+        diagnostic_{std::move(d)} {}
+
+  [[nodiscard]] const hack_asm::diagnostic &diagnostic() const noexcept {
+    return diagnostic_;
+  }
+};
 
 class scanner {
   class impl;
@@ -106,6 +120,6 @@ public:
   [[nodiscard]] auto parse() const
       -> std::expected<std::vector<instruction_t>, diagnostic>;
 
-  [[nodiscard]] auto warnings() const -> std::span<const diagnostic>;
+  [[nodiscard]] auto warnings() -> std::vector<diagnostic>;
 };
 } // namespace hack_asm
