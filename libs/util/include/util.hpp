@@ -45,7 +45,7 @@ inline std::error_code resolve_paths(std::string_view p, bool recursive,
 
 inline std::vector<std::filesystem::path> resolve_paths(hack_asm::args &args) {
   std::vector<std::filesystem::path> paths;
-  for (auto const &p : args.files) {
+  for (auto const &p : args.input) {
     if (auto ec = hack_asm::util::resolve_paths(p, args.recursive, paths); ec) {
       throw std::filesystem::filesystem_error{p, ec};
     }

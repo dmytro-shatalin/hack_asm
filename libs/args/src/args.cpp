@@ -9,8 +9,8 @@
 #include <print>
 #include <string>
 #include <thread>
+#include <vector>
 
-#define POSITIONAL_ARGS POSITIONAL_STRING_ARG(path, 0, "source files path")
 #define OPTIONAL_FLAGS                                                         \
   OPTIONAL_STRING_FLAG(format, "format", "byte", "set compiled output format") \
   OPTIONAL_STRING_FLAG(output, "output", "",                                   \
@@ -25,6 +25,7 @@
   SHORT_FLAG(verbose, 'v', "verbose output")                                   \
   SHORT_FLAG(quiet, 'q', "quiet output")                                       \
   SHORT_FLAG(help, 'h', "show this message")
+#define POSITIONAL_REST REST_STRING_ARG(files, 1, 16, "input files")
 
 #include "args_parser/args_parser.h"
 
@@ -66,8 +67,13 @@ auto hack_asm::parse_args(const int argc, const char *argv[], args &out)
     threads = static_cast<uint16_t>(parsed);
   }
 
+  std::vector<std::string> files(args.files_rest_arg.count);
+  for (auto p : args.files_rest_arg.items) {
+    files.emplace_back(p);
+  }
+
   out = {
-      .path = std::string{args.path_pos_arg},
+      .input = std::move(files),
       .format = std::string{args.format_optional_arg},
       .output = std::string{args.output_optional_arg},
       .threads = threads,

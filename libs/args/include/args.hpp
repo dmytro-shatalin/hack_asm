@@ -6,12 +6,13 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace hack_asm {
 struct args {
-  std::string path;
-  std::string format;
+  std::vector<std::string> input;
   std::string output;
+  std::string format;
   std::uint16_t threads;
   bool recursive{};
   bool verbose{};
