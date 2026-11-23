@@ -16,7 +16,6 @@ struct args {
   output_format format;
   std::uint16_t threads;
   bool recursive{};
-  bool verbose{};
   bool quiet{};
 };
 

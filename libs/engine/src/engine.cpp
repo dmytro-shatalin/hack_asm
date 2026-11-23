@@ -95,13 +95,16 @@ auto make_jobs(std::span<std::filesystem::path> ipaths, std::string_view odir,
                std::string_view ext)
     -> std::vector<std::function<file_result(std::stop_token)>> {
   std::vector<std::function<file_result(std::stop_token)>> jobs;
-  for (const auto p : ipaths) {
+  for (const auto &p : ipaths) {
     jobs.push_back(make_job(p, odir, ext));
   }
   return jobs;
 }
 
 void report(const file_result &fr, bool quiet) {
+  if (!quiet) {
+    return;
+  }
   const auto ip = fr.ipath;
   std::optional<std::vector<std::string>> lines;
   if (fr.error) {
@@ -131,14 +134,12 @@ class assembler::impl {
 
   std::string odir_;
 
-  bool v_{};
-
   bool q_{};
 
 public:
   explicit impl(plan plan)
       : pool_(plan.threads), ipaths_(plan.input), odir_(plan.output_dir),
-        v_(plan.verbose), q_(plan.quiet) {}
+        q_(plan.quiet) {}
 
   ~impl() { pool_.stop_forced(); }
 

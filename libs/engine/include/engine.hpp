@@ -30,7 +30,6 @@ struct plan {
   std::string output_dir;
   output_format format;
   std::uint16_t threads;
-  bool verbose{};
   bool quiet{};
 };
 
@@ -40,7 +39,6 @@ inline auto make_plan(const args &args) -> plan {
       .output_dir = args.output,
       .format = args.format,
       .threads = args.threads,
-      .verbose = args.verbose,
       .quiet = args.quiet,
   };
 }

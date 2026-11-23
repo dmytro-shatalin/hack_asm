@@ -23,7 +23,6 @@
   BOOLEAN_FLAG(help, "help", "show this message")
 #define SHORT_FLAGS                                                            \
   SHORT_FLAG(recursive, 'r', "compile directory's contents recursively")       \
-  SHORT_FLAG(verbose, 'v', "verbose output")                                   \
   SHORT_FLAG(quiet, 'q', "quiet output")                                       \
   SHORT_FLAG(help, 'h', "show this message")
 #define POSITIONAL_REST REST_STRING_ARG(files, 1, 16, "input files")
@@ -102,7 +101,6 @@ auto parse_args(const int argc, const char *argv[], args &out) -> args_result {
       .format = format.value(),
       .threads = threads,
       .recursive = args.recursive_short_arg,
-      .verbose = args.verbose_short_arg,
       .quiet = args.quiet_short_arg,
   };
   return args_result::run;
