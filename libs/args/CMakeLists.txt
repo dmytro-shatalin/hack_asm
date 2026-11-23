@@ -7,9 +7,11 @@ target_sources(${ARGS_LIB} PUBLIC
     FILES include/args.hpp
 )
 
-target_link_libraries(${ARGS_LIB} PRIVATE
-    ${HACK_ASM_WARNINGS}
-    ${HACK_ASM_CONFIG}
-    ${OUTPUT_LIB}
-    args_parser::args_parser
+target_link_libraries(${ARGS_LIB}
+    PUBLIC
+        ${OUTPUT_LIB}
+    PRIVATE
+        ${HACK_ASM_WARNINGS}
+        ${HACK_ASM_CONFIG}
+        args_parser::args_parser
 )
