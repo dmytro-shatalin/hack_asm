@@ -25,6 +25,7 @@ set(HACK_ASM_WARNINGS "hack_asm_warnings")
 set(HACK_ASM_WARNING_OPTIONS "-Wall" "-Wextra" "-Wpedantic")
 
 set(ARGS_LIB "args_lib")
+set(DIAGNOSTICS_LIB "diagnostics_lib")
 set(OUTPUT_LIB "output_lib")
 set(PARSER_LIB "parser_lib")
 set(PIPELINE_LIB "pipeline_lib")
@@ -110,6 +111,8 @@ if(COMPILE_EXECUTABLE)
     )
     target_link_libraries(${HACK_ASM_TARGET} PRIVATE
         ${ARGS_LIB}
+        ${DIAGNOSTICS_LIB}
+        ${OUTPUT_LIB}
         ${PARSER_LIB}
         ${PIPELINE_LIB}
         ${UTIL_LIB}

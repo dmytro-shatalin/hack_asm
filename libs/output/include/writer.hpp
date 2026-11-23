@@ -2,9 +2,14 @@
 // Created by dshatalin on 11/23/26.
 //
 
-#ifndef HACK_ASM_WRITER_H
-#define HACK_ASM_WRITER_H
+#pragma once
 
-class writer {};
+#include <cstddef>
+#include <filesystem>
+#include <span>
 
-#endif // HACK_ASM_WRITER_H
+namespace hack_asm {
+
+void write_file(std::filesystem::path p, std::span<std::byte> bytes);
+
+}
