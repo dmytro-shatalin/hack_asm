@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "args.hpp"
 #include <filesystem>
 #include <string_view>
 #include <system_error>
@@ -43,15 +42,19 @@ inline std::error_code resolve_paths(std::string_view p, bool recursive,
   return {};
 }
 
-inline std::vector<std::filesystem::path> resolve_paths(hack_asm::args &args) {
+inline std::vector<std::filesystem::path>
+resolve_paths(bool r, std::span<const std::string> input) {
   std::vector<std::filesystem::path> paths;
-  for (auto const &p : args.input) {
-    if (auto ec = hack_asm::util::resolve_paths(p, args.recursive, paths); ec) {
+  for (const auto &p : input) {
+    if (auto ec = hack_asm::util::resolve_paths(p, r, paths); ec) {
       throw std::filesystem::filesystem_error{p, ec};
     }
   }
   return paths;
 }
+
+auto read_source_lines(const std::filesystem::path &path)
+    -> std::vector<std::string>;
 
 } // namespace util
 

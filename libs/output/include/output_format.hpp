@@ -6,6 +6,6 @@
 
 namespace hack_asm {
 
-enum class output_format { binary, symantic };
+enum class output_format { binary, symbolic };
 
 }

@@ -11,7 +11,7 @@ build:
 	@cmake --build build
 
 exec:
-	./build/bin/hack_asm --help -h
+	./build/bin/hack_asm --output ./example/out ./example/data
 
 test:
 	cmake -S . -B build -DBUILD_TESTING=ON

@@ -11,7 +11,7 @@
 
 namespace hack_asm {
 
-void write_file(std::filesystem::path p, std::span<std::byte> bytes) {
+void write_file(std::filesystem::path p, std::span<const std::byte>  bytes) {
   std::error_code ec;
 
   if (p.has_parent_path()) {
@@ -25,7 +25,7 @@ void write_file(std::filesystem::path p, std::span<std::byte> bytes) {
 
   std::ofstream file{p, std::ios::binary | std::ios::trunc};
 
-  file.write(reinterpret_cast<char *>(bytes.data()),
+  file.write(reinterpret_cast<const char *>(bytes.data()),
              static_cast<std::streamsize>(bytes.size_bytes()));
   if (file.bad()) {
     throw std::runtime_error("failed to write to the file: " + p.string());

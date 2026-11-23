@@ -48,28 +48,33 @@ struct c_instruction {
 using instruction_t = std::variant<a_instruction, c_instruction>;
 
 struct parse_result {
-  std::vector<instruction_t> instructions;
-  std::vector<diagnostic> warnings;
+  std::vector<instruction_t> instructions_;
+  std::vector<diagnostic> warnings_;
+
+  [[nodiscard]] bool has_warnings() const { return !warnings_.empty(); }
 };
 
 class parse_error : public std::runtime_error {
   hack_asm::diagnostic diagnostic_;
+  std::string path_;
 
 public:
-  explicit parse_error(hack_asm::diagnostic d)
+  explicit parse_error(std::string path, hack_asm::diagnostic d)
       : std::runtime_error{
             std::format("parse error at line {}: {}", d.line, d.msg)},
-        diagnostic_{std::move(d)} {}
+        diagnostic_{std::move(d)}, path_(std::move(path)) {}
 
   [[nodiscard]] const hack_asm::diagnostic &diagnostic() const noexcept {
     return diagnostic_;
   }
+
+  [[nodiscard]] std::string path() const noexcept { return path_; }
 };
 
 class scanner {
   class impl;
 
-  std::unique_ptr<impl> pimpl;
+  std::unique_ptr<impl> pimpl_;
 
 public:
   // Constructors
@@ -104,7 +109,7 @@ public:
 
 class parser {
   class impl;
-  std::unique_ptr<impl> pimpl;
+  std::unique_ptr<impl> pimpl_;
 
 public:
   // Constructors

@@ -1,11 +1,9 @@
-add_library(${UTIL_LIB} INTERFACE)
+add_library(${UTIL_LIB} STATIC
+    src/util.cpp
+)
 
-target_sources(${UTIL_LIB} INTERFACE
+target_sources(${UTIL_LIB} PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include
     FILES include/util.hpp
-)
-
-target_link_libraries(${UTIL_LIB} INTERFACE
-    ${ARGS_LIB}
 )

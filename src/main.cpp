@@ -3,15 +3,9 @@
 //
 
 #include "args.hpp"
-#include "pipeline.hpp"
+#include "engine.hpp"
 
-#include "parser.hpp"
-#include "threadlib/thread_pool.h"
-#include "util.hpp"
-#include <filesystem>
-#include <functional>
-#include <stop_token>
-#include <vector>
+#include <cstdlib>
 
 int main(const int argc, const char *argv[]) {
   hack_asm::args args{};
@@ -21,20 +15,6 @@ int main(const int argc, const char *argv[]) {
                                                     : EXIT_FAILURE;
   }
 
-  // resolve filepaths from args
-  auto paths = hack_asm::util::resolve_paths(args);
-
-  // start worker pool and submit all files for parse
-  threadlib::thread_pool pool{args.threads};
-
-  std::vector<std::function<hack_asm::file_result(std::stop_token)>> batch;
-  for (const auto &p : paths) {
-    batch.emplace_back(hack_asm::make_worker_func(p, args));
-  }
-  auto list = pool.submit_list(batch);
-
-  auto results = list.all();
-
-  // write parsed based on the args
-  // todo: implement
+  return hack_asm::assembler::from_args(args).run() ? EXIT_SUCCESS
+                                                    : EXIT_FAILURE;
 }

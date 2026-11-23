@@ -5,13 +5,10 @@
 #include "parser.hpp"
 
 #include <cstdint>
-#include <format>
 #include <ranges>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-using namespace hack_asm;
 
 namespace {
 const std::unordered_map<std::string, std::uint8_t> comp_lut{
@@ -40,15 +37,16 @@ auto to_string(auto first, auto last) -> std::string {
 
 auto parse_a_instruction(const std::string &str,
                          std::unordered_map<std::string, size_t> &labels,
-                         const size_t line, instruction_t &out)
-    -> std::optional<diagnostic> {
+                         const size_t line, hack_asm::instruction_t &out)
+    -> std::optional<hack_asm::diagnostic> {
   size_t addr;
   if (auto target = std::string{str}.substr(1);
       std::isalpha(target[0]) || target[0] == '_') {
     if (!labels.contains(target)) {
-      return diagnostic{.level = severity::error,
-                        .line = line,
-                        .msg = std::format("undefined label: {:s}", target)};
+      return hack_asm::diagnostic{
+          .level = hack_asm::severity::error,
+          .line = line,
+          .msg = std::format("undefined label: {:s}", target)};
     }
     addr = labels[target];
   } else {
@@ -57,26 +55,28 @@ auto parse_a_instruction(const std::string &str,
         std::from_chars(target.data(), target.data() + target.size(), value);
     if (ec != std::errc{} || ptr != target.data() + target.size() ||
         value > 32767) {
-      return diagnostic{.level = severity::error,
-                        .line = line,
-                        .msg = std::format("invalid address: {}", target)};
+      return hack_asm::diagnostic{
+          .level = hack_asm::severity::error,
+          .line = line,
+          .msg = std::format("invalid address: {}", target)};
     }
     addr = value;
   }
-  out = a_instruction(addr);
+  out = hack_asm::a_instruction(addr);
   return std::nullopt;
 }
 
 auto parse_c_instruction(const std::string &str, const size_t line,
-                         instruction_t &out) -> std::optional<diagnostic> {
+                         hack_asm::instruction_t &out)
+    -> std::optional<hack_asm::diagnostic> {
   std::string_view rest = str;
   std::string_view dest, jump;
 
   if (rest == "JMP") {
-    out = c_instruction{.dest = 0,
-                        .comp = comp_lut.at("0"),
-                        .jump = jump_lut.at("JMP"),
-                        .mnemonic = "0;JMP"};
+    out = hack_asm::c_instruction{.dest = 0,
+                                  .comp = comp_lut.at("0"),
+                                  .jump = jump_lut.at("JMP"),
+                                  .mnemonic = "0;JMP"};
     return std::nullopt;
   }
   if (const auto eq = rest.find('='); eq != std::string_view::npos) {
@@ -89,7 +89,7 @@ auto parse_c_instruction(const std::string &str, const size_t line,
   }
   const std::string_view comp = rest;
 
-  c_instruction instr{};
+  hack_asm::c_instruction instr{};
   for (const char c : dest) {
     switch (c) {
     case 'A':
@@ -102,16 +102,16 @@ auto parse_c_instruction(const std::string &str, const size_t line,
       instr.dest |= 0b001;
       break;
     default:
-      return diagnostic{.level = severity::error,
-                        .line = line,
-                        .msg = std::format("invalid dest: {}", dest)};
+      return hack_asm::diagnostic{.level = hack_asm::severity::error,
+                                  .line = line,
+                                  .msg = std::format("invalid dest: {}", dest)};
     }
   }
   const auto c_it = comp_lut.find(std::string{comp});
   if (c_it == comp_lut.end()) {
-    return diagnostic{.level = severity::error,
-                      .line = line,
-                      .msg = std::format("invalid comp: '{}'", comp)};
+    return hack_asm::diagnostic{.level = hack_asm::severity::error,
+                                .line = line,
+                                .msg = std::format("invalid comp: '{}'", comp)};
   }
   instr.comp = c_it->second;
   instr.mnemonic += "=" + c_it->first;
@@ -119,9 +119,10 @@ auto parse_c_instruction(const std::string &str, const size_t line,
   if (!jump.empty()) {
     const auto j_it = jump_lut.find(std::string{jump});
     if (j_it == jump_lut.end()) {
-      return diagnostic{.level = severity::error,
-                        .line = line,
-                        .msg = std::format("invalid jump: '{}'", jump)};
+      return hack_asm::diagnostic{.level = hack_asm::severity::error,
+                                  .line = line,
+                                  .msg =
+                                      std::format("invalid jump: '{}'", jump)};
     }
     instr.jump = j_it->second;
     instr.mnemonic += ";" + j_it->first;
@@ -129,7 +130,10 @@ auto parse_c_instruction(const std::string &str, const size_t line,
   out = instr;
   return std::nullopt;
 }
+
 } // namespace
+
+namespace hack_asm {
 
 class parser::impl {
   std::vector<std::byte> buffer_;
@@ -179,7 +183,7 @@ private:
 // parse_base
 
 parser::parser(std::vector<std::byte> buffer)
-    : pimpl(std::make_unique<impl>(std::move(buffer))) {}
+    : pimpl_(std::make_unique<impl>(std::move(buffer))) {}
 
 parser::~parser() = default;
 
@@ -187,10 +191,10 @@ parser::parser(parser &&) noexcept = default;
 
 parser &parser::operator=(parser &&) noexcept = default;
 
-void parser::reset() const { this->pimpl->reset(); }
+void parser::reset() const { this->pimpl_->reset(); }
 
 auto parser::parse() const -> std::expected<parse_result, diagnostic> {
-  return this->pimpl->parse();
+  return this->pimpl_->parse();
 }
 
 // parsed_base::impl
@@ -373,5 +377,7 @@ auto parser::impl::parse() -> std::expected<parse_result, diagnostic> {
     opcode = this->scan_next();
   }
 
-  return parse_result{.instructions = instructions, .warnings = warnings_};
+  return parse_result{.instructions_ = instructions, .warnings_ = warnings_};
 }
+
+} // namespace hack_asm

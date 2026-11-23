@@ -1,4 +1,5 @@
 add_library(${OUTPUT_LIB} STATIC
+    src/diagnostic_report.cpp
     src/encoder.cpp
     src/writer.cpp
 )
@@ -6,7 +7,7 @@ add_library(${OUTPUT_LIB} STATIC
 target_sources(${OUTPUT_LIB} PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include
-    FILES include/encoder.hpp include/output_format.hpp
+    FILES include/diagnostic_report.hpp include/encoder.hpp include/output_format.hpp include/writer.hpp
 )
 
 target_link_libraries(${OUTPUT_LIB}

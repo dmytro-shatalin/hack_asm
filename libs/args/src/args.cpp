@@ -39,14 +39,15 @@ auto to_output_format(std::string_view s)
   if (s == "byte")
     return hack_asm::output_format::binary;
   if (s == "symantic")
-    return hack_asm::output_format::symantic;
+    return hack_asm::output_format::symbolic;
   return std::nullopt;
 }
 
 } // namespace
 
-auto hack_asm::parse_args(const int argc, const char *argv[], args &out)
-    -> args_result {
+namespace hack_asm {
+
+auto parse_args(const int argc, const char *argv[], args &out) -> args_result {
   args_t args;
   if (!::parse_args(argc, argv, &args)) {
     return args_result::exit_error;
@@ -81,9 +82,10 @@ auto hack_asm::parse_args(const int argc, const char *argv[], args &out)
     threads = static_cast<uint16_t>(parsed);
   }
 
-  std::vector<std::string> files(args.files_rest_arg.count);
-  for (auto p : args.files_rest_arg.items) {
-    files.emplace_back(p);
+  std::vector<std::string> files;
+  files.reserve(args.files_rest_arg.count);
+  for (std::size_t i = 0; i < args.files_rest_arg.count; ++i) {
+    files.emplace_back(args.files_rest_arg.items[i]);
   }
 
   const auto format = to_output_format(args.format_optional_arg);
@@ -105,3 +107,5 @@ auto hack_asm::parse_args(const int argc, const char *argv[], args &out)
   };
   return args_result::run;
 }
+
+} // namespace hack_asm

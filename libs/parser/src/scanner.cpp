@@ -130,7 +130,7 @@ private:
 
 // scanner_base
 
-scanner::scanner() : pimpl(std::make_unique<impl>()) {}
+scanner::scanner() : pimpl_(std::make_unique<impl>()) {}
 
 scanner::~scanner() = default;
 
@@ -138,24 +138,24 @@ scanner::scanner(scanner &&) noexcept = default;
 
 scanner &scanner::operator=(scanner &&) noexcept = default;
 
-void scanner::reset() const { this->pimpl->reset(); }
+void scanner::reset() const { this->pimpl_->reset(); }
 
 auto scanner::feed(const std::byte c) const -> state {
-  return this->pimpl->feed(c);
+  return this->pimpl_->feed(c);
 }
 
-auto scanner::eof() const -> state { return this->pimpl->eof(); }
+auto scanner::eof() const -> state { return this->pimpl_->eof(); }
 
-void scanner::reset_diagnostic() const { this->pimpl->reset_diagnostic(); }
+void scanner::reset_diagnostic() const { this->pimpl_->reset_diagnostic(); }
 
 auto scanner::instruction() const -> size_t {
-  return this->pimpl->instruction();
+  return this->pimpl_->instruction();
 }
 
-auto scanner::line() const -> size_t { return this->pimpl->line(); }
+auto scanner::line() const -> size_t { return this->pimpl_->line(); }
 
 auto scanner::last_diagnostic() const -> const std::optional<diagnostic> & {
-  return this->pimpl->last_diagnostic();
+  return this->pimpl_->last_diagnostic();
 }
 
 // scanner_base::impl

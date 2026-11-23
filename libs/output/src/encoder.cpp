@@ -1,7 +1,5 @@
 #include "encoder.hpp"
 
-using namespace hack_asm;
-
 namespace {
 
 #ifdef _WIN32
@@ -16,32 +14,35 @@ template <class... Ts> struct overloaded : Ts... {
 
 } // namespace
 
+namespace hack_asm {
+
 auto encoder<output_format::binary>::operator()(
-    const std::span<instruction_t> s) const -> std::vector<std::byte> {
+    const std::span<const instruction_t> s) const -> std::vector<std::byte> {
   std::vector<std::byte> encoded;
 
   for (auto const &i : s) {
-    std::visit(overloaded{
-                   [out = encoded](const a_instruction &inst) mutable {
-                     out.push_back(static_cast<std::byte>(inst.target >> 8));
-                     out.push_back(static_cast<std::byte>(inst.target & 0xFF));
-                   },
-                   [out = encoded](const c_instruction &inst) mutable {
-                     out.push_back(
-                         static_cast<std::byte>(0b11100000 | (inst.comp >> 2)));
-                     out.push_back(static_cast<std::byte>(
-                         ((inst.comp & 0b11) << 6) |
-                         ((inst.dest & 0b111) << 3) | (inst.jump & 0b111)));
-                   },
-               },
-               i);
+    std::visit(
+        overloaded{
+            [&](const a_instruction &inst) mutable {
+              encoded.push_back(static_cast<std::byte>(inst.target >> 8));
+              encoded.push_back(static_cast<std::byte>(inst.target & 0xFF));
+            },
+            [&](const c_instruction &inst) mutable {
+              encoded.push_back(
+                  static_cast<std::byte>(0b11100000 | (inst.comp >> 2)));
+              encoded.push_back(static_cast<std::byte>(
+                  ((inst.comp & 0b11) << 6) | ((inst.dest & 0b111) << 3) |
+                  (inst.jump & 0b111)));
+            },
+        },
+        i);
   }
 
   return encoded;
 }
 
-auto encoder<output_format::symantic>::operator()(
-    std::span<instruction_t> const s) const -> std::vector<std::byte> {
+auto encoder<output_format::symbolic>::operator()(
+    std::span<const instruction_t> const s) const -> std::vector<std::byte> {
   std::vector<std::byte> encoded;
 
   for (auto const &i : s) {
@@ -66,3 +67,5 @@ auto encoder<output_format::symantic>::operator()(
 
   return encoded;
 }
+
+} // namespace hack_asm
