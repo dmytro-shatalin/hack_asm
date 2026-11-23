@@ -152,9 +152,7 @@ public:
 
   void reset();
 
-  auto parse() -> std::expected<std::vector<instruction_t>, diagnostic>;
-
-  auto warnings() -> std::vector<diagnostic>;
+  auto parse() -> std::expected<parse_result, diagnostic>;
 
 private:
   auto read_offset() const -> size_t { return this->off_; };
@@ -191,13 +189,8 @@ parser &parser::operator=(parser &&) noexcept = default;
 
 void parser::reset() const { this->pimpl->reset(); }
 
-auto parser::parse() const
-    -> std::expected<std::vector<instruction_t>, diagnostic> {
+auto parser::parse() const -> std::expected<parse_result, diagnostic> {
   return this->pimpl->parse();
-}
-
-auto parser::warnings() -> std::vector<diagnostic> {
-  return this->pimpl->warnings();
 }
 
 // parsed_base::impl
@@ -357,8 +350,7 @@ auto parser::impl::check_valid() -> std::optional<diagnostic> {
   return diag.value();
 }
 
-auto parser::impl::parse()
-    -> std::expected<std::vector<instruction_t>, diagnostic> {
+auto parser::impl::parse() -> std::expected<parse_result, diagnostic> {
   this->reset();
 
   if (const auto error = this->check_valid(); error.has_value()) {
@@ -367,7 +359,7 @@ auto parser::impl::parse()
 
   state opcode = this->skip_while(state::scan_skip_space);
 
-  std::vector<instruction_t> statements;
+  std::vector<instruction_t> instructions;
   while (opcode != state::scan_end) {
     if (opcode == state::scan_begin_a_instruction ||
         opcode == state::scan_begin_c_instruction) {
@@ -376,14 +368,10 @@ auto parser::impl::parse()
           parse_err.has_value()) {
         return std::unexpected{parse_err.value()};
       }
-      statements.push_back(parsed);
+      instructions.push_back(parsed);
     }
     opcode = this->scan_next();
   }
 
-  return statements;
-}
-
-auto parser::impl::warnings() -> std::vector<diagnostic> {
-  return this->warnings_;
+  return parse_result{.instructions = instructions, .warnings = warnings_};
 }

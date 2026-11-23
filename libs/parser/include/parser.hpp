@@ -47,6 +47,11 @@ struct c_instruction {
 
 using instruction_t = std::variant<a_instruction, c_instruction>;
 
+struct parse_result {
+  std::vector<instruction_t> instructions;
+  std::vector<diagnostic> warnings;
+};
+
 class parse_error : public std::runtime_error {
   hack_asm::diagnostic diagnostic_;
 
@@ -118,9 +123,6 @@ public:
 
   void reset() const;
 
-  [[nodiscard]] auto parse() const
-      -> std::expected<std::vector<instruction_t>, diagnostic>;
-
-  [[nodiscard]] auto warnings() -> std::vector<diagnostic>;
+  [[nodiscard]] auto parse() const -> std::expected<parse_result, diagnostic>;
 };
 } // namespace hack_asm
