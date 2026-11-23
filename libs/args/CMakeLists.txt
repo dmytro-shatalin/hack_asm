@@ -10,5 +10,6 @@ target_sources(${ARGS_LIB} PUBLIC
 target_link_libraries(${ARGS_LIB} PRIVATE
     ${HACK_ASM_WARNINGS}
     ${HACK_ASM_CONFIG}
+    ${OUTPUT_LIB}
     args_parser::args_parser
 )

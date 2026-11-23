@@ -25,6 +25,7 @@ set(HACK_ASM_WARNINGS "hack_asm_warnings")
 set(HACK_ASM_WARNING_OPTIONS "-Wall" "-Wextra" "-Wpedantic")
 
 set(ARGS_LIB "args_lib")
+set(OUTPUT_LIB "output_lib")
 set(PARSER_LIB "parser_lib")
 set(UTIL_LIB "util_lib")
 set(ARGS_PARSER_DEP "args_parser_dep")

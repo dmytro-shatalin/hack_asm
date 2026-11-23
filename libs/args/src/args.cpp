@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <print>
 #include <string>
 #include <thread>
@@ -30,6 +31,19 @@
 #include "args_parser/args_parser.h"
 
 #include "config.hpp"
+
+namespace {
+
+auto to_output_format(std::string_view s)
+    -> std::optional<hack_asm::output_format> {
+  if (s == "byte")
+    return hack_asm::output_format::binary;
+  if (s == "symantic")
+    return hack_asm::output_format::symantic;
+  return std::nullopt;
+}
+
+} // namespace
 
 auto hack_asm::parse_args(const int argc, const char *argv[], args &out)
     -> args_result {
@@ -60,7 +74,7 @@ auto hack_asm::parse_args(const int argc, const char *argv[], args &out)
     char *end = nullptr;
     auto parsed = std::strtoul(args.threads_optional_arg, &end, 10);
     if (*end != '\0') {
-      std::println(stderr, "Error: invalid threads argument value '{}'",
+      std::println(stderr, "error: invalid threads argument value '{}'",
                    args.threads_optional_arg);
       return args_result::exit_error;
     }
@@ -72,10 +86,18 @@ auto hack_asm::parse_args(const int argc, const char *argv[], args &out)
     files.emplace_back(p);
   }
 
+  const auto format = to_output_format(args.format_optional_arg);
+  if (!format) {
+    std::println(stderr,
+                 "error: invalid format '{}' (expected 'byte' or 'symbolic')",
+                 args.format_optional_arg);
+    return args_result::exit_error;
+  }
+
   out = {
       .input = std::move(files),
-      .format = std::string{args.format_optional_arg},
       .output = std::string{args.output_optional_arg},
+      .format = format.value(),
       .threads = threads,
       .recursive = args.recursive_short_arg,
       .verbose = args.verbose_short_arg,

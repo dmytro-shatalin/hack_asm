@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "output_format.hpp"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -12,7 +13,7 @@ namespace hack_asm {
 struct args {
   std::vector<std::string> input;
   std::string output;
-  std::string format;
+  output_format format;
   std::uint16_t threads;
   bool recursive{};
   bool verbose{};

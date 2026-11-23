@@ -73,8 +73,10 @@ auto parse_c_instruction(const std::string &str, const size_t line,
   std::string_view dest, jump;
 
   if (rest == "JMP") {
-    out = c_instruction{
-        .dest = 0, .comp = comp_lut.at("0"), .jump = jump_lut.at("JMP")};
+    out = c_instruction{.dest = 0,
+                        .comp = comp_lut.at("0"),
+                        .jump = jump_lut.at("JMP"),
+                        .mnemonic = "0;JMP"};
     return std::nullopt;
   }
   if (const auto eq = rest.find('='); eq != std::string_view::npos) {
@@ -112,6 +114,7 @@ auto parse_c_instruction(const std::string &str, const size_t line,
                       .msg = std::format("invalid comp: '{}'", comp)};
   }
   instr.comp = c_it->second;
+  instr.mnemonic += "=" + c_it->first;
 
   if (!jump.empty()) {
     const auto j_it = jump_lut.find(std::string{jump});
@@ -121,6 +124,7 @@ auto parse_c_instruction(const std::string &str, const size_t line,
                         .msg = std::format("invalid jump: '{}'", jump)};
     }
     instr.jump = j_it->second;
+    instr.mnemonic += ";" + j_it->first;
   }
   out = instr;
   return std::nullopt;

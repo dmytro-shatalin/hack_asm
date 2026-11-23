@@ -25,13 +25,15 @@ struct parse_result {
   std::vector<hack_asm::diagnostic> warnings;
 };
 
-std::function<parse_result(std::stop_token)>
-make_worker_func(const std::filesystem::path &p, const hack_asm::args &args) {
+auto make_worker_func(const std::filesystem::path &p,
+                      const hack_asm::args &args)
+    -> std::function<parse_result(std::stop_token)> {
   std::string output;
   output =
       args.output.empty() ? p.string() : args.output + p.filename().string();
   hack_asm::util::remove_suffix(output, ".asm");
   output += ".hack";
+
   return [path = p, output = output](std::stop_token) {
     parse_result result{
         .ipath = path.string(),
@@ -88,4 +90,5 @@ int main(const int argc, const char *argv[]) {
   auto results = list.all();
 
   // write parsed based on the args
+  // todo: implement
 }

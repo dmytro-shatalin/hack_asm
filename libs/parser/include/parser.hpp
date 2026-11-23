@@ -42,6 +42,7 @@ struct c_instruction {
   std::uint8_t dest;
   std::uint8_t comp;
   std::uint8_t jump;
+  std::string mnemonic;
 };
 
 using instruction_t = std::variant<a_instruction, c_instruction>;
