@@ -11,7 +11,7 @@
 
 namespace hack_asm {
 struct args {
-  std::vector<std::string> input;
+  std::vector<std::string> inputs;
   std::string output;
   output_format format;
   std::uint16_t threads;

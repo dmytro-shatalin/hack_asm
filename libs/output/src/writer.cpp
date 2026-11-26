@@ -11,12 +11,14 @@
 
 namespace hack_asm {
 
-void write_file(std::filesystem::path p, std::span<const std::byte>  bytes) {
+namespace fs = std::filesystem;
+
+void write_file(fs::path p, std::span<const std::byte> bytes) {
   std::error_code ec;
 
   if (p.has_parent_path()) {
     const auto parent_path = p.parent_path();
-    std::filesystem::create_directories(parent_path, ec);
+    fs::create_directories(parent_path, ec);
     if (ec) {
       throw std::runtime_error{"failed to create parent path: " +
                                parent_path.string()};

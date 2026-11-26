@@ -15,6 +15,5 @@ target_link_libraries(${ENGINE_LIB}
         ${HACK_ASM_WARNINGS}
         ${OUTPUT_LIB}
         ${PARSER_LIB}
-        ${UTIL_LIB}
         threadlib::threadlib
 )

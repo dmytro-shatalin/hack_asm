@@ -28,7 +28,6 @@ set(ARGS_LIB "args_lib")
 set(ENGINE_LIB "engine_lib")
 set(OUTPUT_LIB "output_lib")
 set(PARSER_LIB "parser_lib")
-set(UTIL_LIB "util_lib")
 set(ARGS_PARSER_DEP "args_parser_dep")
 set(THREADLIB_DEP "threadlib_dep")
 set(GOOGLETEST_DEP "googletest_dep")
@@ -113,7 +112,6 @@ if(COMPILE_EXECUTABLE)
         ${ENGINE_LIB}
         ${OUTPUT_LIB}
         ${PARSER_LIB}
-        ${UTIL_LIB}
         threadlib::threadlib
     )
 endif()

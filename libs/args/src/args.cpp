@@ -33,12 +33,14 @@
 
 namespace {
 
+using namespace hack_asm;
+
 auto to_output_format(std::string_view s)
-    -> std::optional<hack_asm::output_format> {
+    -> std::optional<output_format> {
   if (s == "byte")
-    return hack_asm::output_format::binary;
+    return output_format::binary;
   if (s == "symantic")
-    return hack_asm::output_format::symbolic;
+    return output_format::symbolic;
   return std::nullopt;
 }
 
@@ -96,7 +98,7 @@ auto parse_args(const int argc, const char *argv[], args &out) -> args_result {
   }
 
   out = {
-      .input = std::move(files),
+      .inputs = std::move(files),
       .output = std::string{args.output_optional_arg},
       .format = format.value(),
       .threads = threads,

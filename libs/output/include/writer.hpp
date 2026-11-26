@@ -10,6 +10,6 @@
 
 namespace hack_asm {
 
-void write_file(std::filesystem::path p, std::span<std::byte> bytes);
+void write_file(std::filesystem::path p, std::span<const std::byte> bytes);
 
 }

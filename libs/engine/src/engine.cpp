@@ -7,21 +7,108 @@
 #include "encoder.hpp"
 #include "output_format.hpp"
 #include "parser.hpp"
+#include "writer.hpp"
 
 #include "threadlib/thread_pool.h"
-#include "writer.hpp"
+#include <expected>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <print>
+#include <queue>
+#include <span>
 #include <stop_token>
+#include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
 namespace {
+
+namespace fs = std::filesystem;
+
+void remove_suffix(std::string &str, std::string_view suffix) {
+  if (str.ends_with(suffix)) {
+    str.erase(str.size() - suffix.size());
+  }
+}
+
+auto read_source_lines(const fs::path &path) -> std::vector<std::string> {
+  std::ifstream file{path};
+  std::vector<std::string> lines;
+  std::string line;
+
+  while (std::getline(file, line)) {
+    if (line.ends_with('\r')) {
+      line.pop_back();
+    }
+    lines.push_back(std::move(line));
+  }
+
+  return lines;
+}
+
+class path_resolver {
+  std::string ext_;
+  bool r_;
+
+public:
+  explicit path_resolver(std::string_view ext, bool recur)
+      : ext_(ext.starts_with('.') ? ext : "." + std::string(ext)), r_(recur) {}
+
+  [[nodiscard]] auto resolve(std::span<std::string> inputs)
+      -> std::expected<std::vector<fs::path>, std::error_code> {
+    std::vector<fs::path> paths;
+    for (const auto &p : inputs) {
+      if (auto ec = resolve_paths(p, paths); ec) {
+        return std::unexpected(ec);
+      }
+    }
+    return paths;
+  }
+
+private:
+  bool is_acceptable(fs::path p) { return p.extension().string() == ext_; }
+
+  auto resolve_paths(std::string_view p, std::vector<fs::path> &paths)
+      -> std::error_code {
+    std::error_code ec;
+
+    fs::path path{p};
+    if (!fs::exists(path)) {
+      return std::make_error_code(std::errc::no_such_file_or_directory);
+    }
+
+    if (!fs::is_directory(path)) {
+      if (!is_acceptable(path)) {
+        return {};
+      }
+      paths.push_back(std::move(path));
+      return {};
+    }
+
+    std::queue<fs::path> dirs{{path}};
+    while (!dirs.empty()) {
+      auto dir = dirs.front();
+      dirs.pop();
+      for (const auto &p : fs::directory_iterator{dir}) {
+        if (p.is_directory() && r_) {
+          dirs.push(p);
+          continue;
+        }
+        if (is_acceptable(p)) {
+          paths.push_back(p);
+        }
+      }
+    }
+
+    return {};
+  };
+};
 
 auto to_diagnostic(const std::exception &e) -> hack_asm::diagnostic {
   return hack_asm::diagnostic{
@@ -44,7 +131,7 @@ auto make_job(std::filesystem::path p, std::string_view odir,
   const auto ipath = std::filesystem::absolute(p).lexically_normal();
 
   std::string output = odir.empty() ? p.string() : odir + p.filename().string();
-  hack_asm::util::remove_suffix(output, ".asm");
+  remove_suffix(output, ".asm");
   output += ext;
 
   return [ipath, path = p,
@@ -108,14 +195,14 @@ void report(const file_result &fr, bool quiet) {
   const auto ip = fr.ipath;
   std::optional<std::vector<std::string>> lines;
   if (fr.error) {
-    lines = hack_asm::util::read_source_lines(ip);
+    lines = read_source_lines(ip);
     std::println(
-        "{}",
+        stderr, "{}",
         hack_asm::diagnostic_report{ip, fr.error.value(), lines.value()}.str());
   }
   if (fr.parsed && fr.parsed->has_warnings()) {
     if (!lines) {
-      lines = hack_asm::util::read_source_lines(ip);
+      lines = read_source_lines(ip);
     }
     for (const auto &w : fr.parsed->warnings_) {
       std::println("{}",
@@ -123,6 +210,7 @@ void report(const file_result &fr, bool quiet) {
     }
   }
 }
+
 } // namespace
 
 namespace hack_asm {
@@ -130,7 +218,9 @@ namespace hack_asm {
 class assembler::impl {
   threadlib::thread_pool pool_;
 
-  std::vector<std::filesystem::path> ipaths_;
+  path_resolver resolver_;
+
+  std::span<std::string> ipaths_;
 
   std::string odir_;
 
@@ -138,8 +228,9 @@ class assembler::impl {
 
 public:
   explicit impl(plan plan)
-      : pool_(plan.threads), ipaths_(plan.input), odir_(plan.output_dir),
-        q_(plan.quiet) {}
+      : pool_(plan.threads),
+        resolver_(assembler::source_extension, plan.recursive),
+        ipaths_(plan.inputs), odir_(plan.output_dir), q_(plan.quiet) {}
 
   ~impl() { pool_.stop_forced(); }
 
@@ -155,8 +246,14 @@ public:
     constexpr auto ext = extention_for<Format>;
     const encoder<Format> encode;
 
+    auto paths = resolver_.resolve(ipaths_);
+    if (!paths) {
+      std::println(stderr, "failed to resolve paths");
+      return false;
+    }
+
     std::vector<std::function<file_result(std::stop_token)>> jobs =
-        ::make_jobs(ipaths_, odir_, ext);
+        ::make_jobs(paths.value(), odir_, ext);
     auto list = pool_.submit_list(jobs);
     const auto results = list.all();
 
